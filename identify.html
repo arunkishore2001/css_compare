@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Used CSS Extractor (Advanced)</title>
+
+<style>
+body {
+  font-family: system-ui, Arial;
+  background: #f4f6f8;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1400px;
+  margin: auto;
+}
+
+h2 {
+  margin-bottom: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 20px;
+}
+
+.col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+textarea {
+  width: 100%;
+  min-height: 260px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  resize: vertical;
+}
+
+button {
+  margin: 20px 0;
+  padding: 12px 22px;
+  font-size: 14px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.output textarea {
+  background: #0f172a;
+  color: #d1fae5;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Used CSS Extractor (with Media & Pseudo)</h2>
+
+  <div class="row">
+    <div class="col">
+      <strong>HTML Input</strong>
+      <textarea id="htmlInput" placeholder="Paste HTML here..."></textarea>
+    </div>
+
+    <div class="col">
+      <strong>Full CSS Input</strong>
+      <textarea id="cssInput" placeholder="Paste full CSS here..."></textarea>
+    </div>
+  </div>
+
+  <button onclick="extractUsedCSS()">Extract Used CSS</button>
+
+  <div class="output">
+    <strong>Output</strong>
+    <textarea id="cssOutput" placeholder="Grouped CSS output will appear here..."></textarea>
+  </div>
+</div>
+
+<script>
+function extractUsedCSS() {
+  const html = document.getElementById("htmlInput").value;
+  const css = document.getElementById("cssInput").value;
+  const output = document.getElementById("cssOutput");
+
+  if (!html || !css) {
+    alert("Please paste both HTML and CSS.");
+    return;
+  }
+
+  // Virtual DOM
+  const iframe = document.createElement("iframe");
+  iframe.style.display = "none";
+  document.body.appendChild(iframe);
+  iframe.contentDocument.body.innerHTML = html;
+
+  const usedRules = [];
+  const usedPseudo = [];
+  const usedMedia = [];
+
+  // -------- MEDIA QUERIES --------
+  const mediaBlocks = css.match(/@media[\s\S]*?}\s*}/g) || [];
+  mediaBlocks.forEach(media => {
+    const innerRules = media.match(/[^}]+{[^}]+}/g) || [];
+    let matched = [];
+
+    innerRules.forEach(rule => {
+      const selector = rule.split("{")[0].trim();
+      if (selector.includes("::")) return;
+
+      try {
+        if (iframe.contentDocument.querySelector(selector)) {
+          matched.push(rule);
+        }
+      } catch {}
+    });
+
+    if (matched.length) {
+      usedMedia.push(
+        media.replace(/@media[\s\S]*?{/, "@media {\n" + matched.join("\n") + "\n}")
+      );
+    }
+  });
+
+  // -------- NORMAL RULES --------
+  const cleanCSS = css.replace(/@media[\s\S]*?}\s*}/g, "");
+  const cssBlocks = cleanCSS.match(/[^}]+{[^}]+}/g) || [];
+
+  cssBlocks.forEach(rule => {
+    const selector = rule.split("{")[0].trim();
+
+    if (selector.includes("::")) {
+      const baseSelector = selector.replace(/::.+/, "");
+      try {
+        if (iframe.contentDocument.querySelector(baseSelector)) {
+          usedPseudo.push(rule);
+        }
+      } catch {}
+      return;
+    }
+
+    try {
+      if (iframe.contentDocument.querySelector(selector)) {
+        usedRules.push(rule);
+      }
+    } catch {}
+  });
+
+  // -------- OUTPUT --------
+  output.value =
+`/* === USED CSS === */
+${usedRules.join("\n\n")}
+
+\n/* === USED MEDIA QUERIES === */
+${usedMedia.join("\n\n")}
+
+\n/* === USED PSEUDO ELEMENTS === */
+${usedPseudo.join("\n\n")}`;
+
+  document.body.removeChild(iframe);
+}
+</script>
+
+</body>
+</html>
