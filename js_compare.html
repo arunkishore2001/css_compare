@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Professional JS Diff Tool</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin: 0;
+    font-family: Consolas, monospace;
+    background: #1e1e1e;
+    color: #fff;
+}
+
+header {
+    padding: 15px;
+    text-align: center;
+    background: linear-gradient(90deg,#f7df1e,#f0db4f);
+    color: #000;
+    font-weight: bold;
+}
+
+.controls {
+    padding: 10px;
+    text-align: center;
+    background: #252526;
+}
+
+.controls label {
+    margin-right: 15px;
+}
+
+button {
+    padding: 8px 20px;
+    margin: 5px;
+    border: none;
+    cursor: pointer;
+    background: #f7df1e;
+    color: #000;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.container {
+    display: flex;
+    height: 350px;
+}
+
+textarea {
+    width: 50%;
+    padding: 15px;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: Consolas, monospace;
+    font-size: 14px;
+    background: #1e1e1e;
+    color: #fff;
+}
+
+.diff-container {
+    display: flex;
+    height: 350px;
+    border-top: 1px solid #333;
+}
+
+.diff-box {
+    width: 50%;
+    padding: 15px;
+    overflow: auto;
+    white-space: pre-wrap;
+    border-right: 1px solid #333;
+}
+
+.added { background: #144212; }
+.removed { background: #5a1d1d; }
+.changed { background: #5c3d00; }
+
+footer {
+    padding: 10px;
+    text-align: center;
+    background: #252526;
+}
+</style>
+</head>
+<body>
+
+<header>Professional JavaScript Compare Tool</header>
+
+<div class="controls">
+    <label><input type="checkbox" id="ignoreSpace" checked> Ignore Whitespace</label>
+    <label><input type="checkbox" id="ignoreOrder"> Ignore Function Order</label>
+    <button onclick="compare()">Compare</button>
+    <button onclick="downloadReport()">Download Report</button>
+</div>
+
+<div class="container">
+    <textarea id="left" placeholder="Paste Left JS here..."></textarea>
+    <textarea id="right" placeholder="Paste Right JS here..."></textarea>
+</div>
+
+<div class="diff-container">
+    <div class="diff-box" id="leftDiff"></div>
+    <div class="diff-box" id="rightDiff"></div>
+</div>
+
+<footer>VS Code Style JS Diff Viewer</footer>
+
+<script>
+
+function normalizeJS(code, ignoreSpace, ignoreOrder) {
+
+    if (ignoreSpace) {
+        code = code.replace(/\s+/g, ' ').trim();
+    }
+
+    if (!ignoreOrder) return code;
+
+    // Basic function-level sorting
+    const functions = code.match(/function[\s\S]*?\}/g) || [];
+    const others = code.replace(/function[\s\S]*?\}/g, "").trim();
+
+    functions.sort();
+
+    return others + "\n" + functions.join("\n");
+}
+
+function compare() {
+    const ignoreSpace = document.getElementById("ignoreSpace").checked;
+    const ignoreOrder = document.getElementById("ignoreOrder").checked;
+
+    let left = document.getElementById("left").value;
+    let right = document.getElementById("right").value;
+
+    const normLeft = normalizeJS(left, ignoreSpace, ignoreOrder);
+    const normRight = normalizeJS(right, ignoreSpace, ignoreOrder);
+
+    const leftLines = normLeft.split('\n');
+    const rightLines = normRight.split('\n');
+
+    const leftDiff = document.getElementById("leftDiff");
+    const rightDiff = document.getElementById("rightDiff");
+
+    leftDiff.innerHTML = "";
+    rightDiff.innerHTML = "";
+
+    const max = Math.max(leftLines.length, rightLines.length);
+
+    for (let i = 0; i < max; i++) {
+        const l = leftLines[i] || "";
+        const r = rightLines[i] || "";
+
+        const lDiv = document.createElement("div");
+        const rDiv = document.createElement("div");
+
+        lDiv.textContent = l;
+        rDiv.textContent = r;
+
+        if (l === r) {
+            // same
+        } else if (!l) {
+            rDiv.classList.add("added");
+        } else if (!r) {
+            lDiv.classList.add("removed");
+        } else {
+            lDiv.classList.add("changed");
+            rDiv.classList.add("changed");
+        }
+
+        leftDiff.appendChild(lDiv);
+        rightDiff.appendChild(rDiv);
+    }
+
+    if (normLeft === normRight) {
+        leftDiff.innerHTML = "<div style='color:#4CAF50'>Same JS File</div>";
+        rightDiff.innerHTML = "<div style='color:#4CAF50'>Same JS File</div>";
+    }
+}
+
+function downloadReport() {
+    const left = document.getElementById("leftDiff").innerText;
+    const right = document.getElementById("rightDiff").innerText;
+
+    const content = "LEFT FILE:\n\n" + left + "\n\nRIGHT FILE:\n\n" + right;
+
+    const blob = new Blob([content], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "js-diff-report.txt";
+    link.click();
+}
+
+</script>
+
+</body>
+</html>
